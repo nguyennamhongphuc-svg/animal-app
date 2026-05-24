@@ -1,6 +1,9 @@
 import streamlit as st
 import numpy as np
 import cv2
+import os
+
+os.environ["TF_CPP_MIN_LOG_LEVEL"]="3"
 
 from tensorflow.keras.models import load_model
 from PIL import Image
@@ -22,12 +25,15 @@ classes=[
 
 st.set_page_config(
     page_title="AI Drawing Recognition",
+    page_icon="🐾",
     layout="centered"
 )
 
-st.title("AI Drawing Recognition System")
+st.markdown("""
+# 🐾 AI Drawing Recognition System
 
-st.write("Upload a drawing and AI will predict the animal.")
+Upload a drawing and AI will predict the animal.
+""")
 
 uploaded_file=st.file_uploader(
     "Upload Drawing",
@@ -36,7 +42,7 @@ uploaded_file=st.file_uploader(
 
 if uploaded_file is not None:
 
-    image=Image.open(uploaded_file)
+    image=Image.open(uploaded_file).convert("RGB")
 
     st.image(image,width=300)
 
@@ -52,7 +58,7 @@ if uploaded_file is not None:
 
     img=img.reshape(1,28,28,1)
 
-    prediction=model.predict(img)[0]
+    prediction=model.predict(img,verbose=0)[0]
 
     index=np.argmax(prediction)
 
@@ -67,4 +73,9 @@ if uploaded_file is not None:
     st.subheader("All Predictions")
 
     for i,c in enumerate(classes):
+
         st.write(f"{c}: {prediction[i]*100:.2f}%")
+
+else:
+
+    st.warning("Please upload an animal drawing.")
