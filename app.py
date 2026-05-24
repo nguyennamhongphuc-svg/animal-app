@@ -1,38 +1,70 @@
 import streamlit as st
-from streamlit_drawable_canvas import st_canvas
-import tensorflow as tf
-import cv2
 import numpy as np
+import cv2
 
-# Load model
-@st.cache_resource
-def load_model():
-    return tf.keras.models.load_model('animal_model.h5')
+from tensorflow.keras.models import load_model
+from PIL import Image
 
-model = load_model()
-classes = ['Mèo', 'Chó', 'Heo', 'Chuột', 'Voi', 'Chim', 'Cá', 'Ngựa', 'Thỏ', 'Rắn']
+model=load_model("animal_sketch_model.h5")
 
-st.title("🐾 AI Nhận dạng Động vật")
-st.write("Hãy vẽ con vật bạn thích vào khung dưới đây:")
+classes=[
+    "cat",
+    "dog",
+    "fish",
+    "bird",
+    "rabbit",
+    "lion",
+    "tiger",
+    "elephant",
+    "monkey",
+    "horse"
+]
 
-# Canvas vẽ
-canvas_result = st_canvas(
-    fill_color="white", stroke_width=10,
-    stroke_color="black", background_color="white",
-    height=280, width=280, drawing_mode="freedraw", key="canvas"
+st.set_page_config(
+    page_title="AI Drawing Recognition",
+    layout="centered"
 )
 
-if canvas_result.image_data is not None:
-    # Tiền xử lý ảnh
-    img = cv2.cvtColor(canvas_result.image_data.astype('uint8'), cv2.COLOR_RGBA2GRAY)
-    img = cv2.resize(img, (28, 28))
-    # Đảo ngược màu vì model train trên nền đen (nét trắng)
-    img = 255 - img 
-    img = img.reshape(1, 28, 28, 1) / 255.0
-    
-    # Dự đoán
-    pred = model.predict(img)
-    idx = np.argmax(pred)
-    
-    st.subheader(f"AI đoán đây là: {classes[idx]}")
-    st.progress(float(np.max(pred)))
+st.title("AI Drawing Recognition System")
+
+st.write("Upload a drawing and AI will predict the animal.")
+
+uploaded_file=st.file_uploader(
+    "Upload Drawing",
+    type=["png","jpg","jpeg"]
+)
+
+if uploaded_file is not None:
+
+    image=Image.open(uploaded_file)
+
+    st.image(image,width=300)
+
+    img=np.array(image)
+
+    img=cv2.resize(img,(28,28))
+
+    img=cv2.cvtColor(img,cv2.COLOR_RGB2GRAY)
+
+    img=255-img
+
+    img=img.astype("float32")/255.0
+
+    img=img.reshape(1,28,28,1)
+
+    prediction=model.predict(img)[0]
+
+    index=np.argmax(prediction)
+
+    animal=classes[index]
+
+    confidence=float(np.max(prediction)*100)
+
+    st.success(f"Prediction: {animal}")
+
+    st.info(f"Confidence: {confidence:.2f}%")
+
+    st.subheader("All Predictions")
+
+    for i,c in enumerate(classes):
+        st.write(f"{c}: {prediction[i]*100:.2f}%")
