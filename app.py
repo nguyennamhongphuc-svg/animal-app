@@ -1,81 +1,52 @@
 import streamlit as st
-import numpy as np
+from streamlit_drawable_canvas import st_canvas
+import tensorflow as tf
 import cv2
-import os
+import numpy as np
 
-os.environ["TF_CPP_MIN_LOG_LEVEL"]="3"
+# Cấu hình trang
+st.set_page_config(page_title="AI Nhận diện Động vật", layout="wide")
 
-from tensorflow.keras.models import load_model
-from PIL import Image
-
-model=load_model("animal_sketch_model.h5")
-
-classes=[
-    "cat",
-    "dog",
-    "fish",
-    "bird",
-    "rabbit",
-    "lion",
-    "tiger",
-    "elephant",
-    "monkey",
-    "horse"
-]
-
-st.set_page_config(
-    page_title="AI Drawing Recognition",
-    page_icon="🐾",
-    layout="centered"
-)
-
+# CSS để giao diện đẹp như ý bạn
 st.markdown("""
-# 🐾 AI Drawing Recognition System
+    <style>
+        .stApp {background-color: #FFF5F5;}
+        .css-1r6slb0 {border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);}
+    </style>
+""", unsafe_allow_html=True)
 
-Upload a drawing and AI will predict the animal.
-""")
+# Load model với cache để tiết kiệm RAM
+@st.cache_resource
+def get_model():
+    return tf.keras.models.load_model('animal_model.h5')
 
-uploaded_file=st.file_uploader(
-    "Upload Drawing",
-    type=["png","jpg","jpeg"]
-)
+model = get_model()
+classes = ['Mèo', 'Chó', 'Heo', 'Chuột', 'Voi', 'Chim', 'Cá', 'Ngựa', 'Thỏ', 'Rắn']
 
-if uploaded_file is not None:
+st.title("🐾 AI Nhận diện Động vật")
 
-    image=Image.open(uploaded_file).convert("RGB")
+col1, col2 = st.columns([1, 1])
 
-    st.image(image,width=300)
+with col1:
+    st.subheader("Vẽ con vật tại đây")
+    canvas_result = st_canvas(
+        fill_color="white", stroke_width=12,
+        stroke_color="#FF8A65", background_color="white",
+        height=300, width=300, drawing_mode="freedraw", key="canvas"
+    )
 
-    img=np.array(image)
-
-    img=cv2.resize(img,(28,28))
-
-    img=cv2.cvtColor(img,cv2.COLOR_RGB2GRAY)
-
-    img=255-img
-
-    img=img.astype("float32")/255.0
-
-    img=img.reshape(1,28,28,1)
-
-    prediction=model.predict(img,verbose=0)[0]
-
-    index=np.argmax(prediction)
-
-    animal=classes[index]
-
-    confidence=float(np.max(prediction)*100)
-
-    st.success(f"Prediction: {animal}")
-
-    st.info(f"Confidence: {confidence:.2f}%")
-
-    st.subheader("All Predictions")
-
-    for i,c in enumerate(classes):
-
-        st.write(f"{c}: {prediction[i]*100:.2f}%")
-
-else:
-
-    st.warning("Please upload an animal drawing.")
+with col2:
+    st.subheader("Kết quả dự đoán")
+    if canvas_result.image_data is not None:
+        # Xử lý ảnh
+        img = cv2.cvtColor(canvas_result.image_data.astype('uint8'), cv2.COLOR_RGBA2GRAY)
+        img = cv2.resize(img, (28, 28))
+        img = 255 - img # Đảo màu
+        img = img.reshape(1, 28, 28, 1) / 255.0
+        
+        # Dự đoán
+        pred = model.predict(img)
+        idx = np.argmax(pred)
+        
+        st.write(f"### Dự đoán: {classes[idx]}")
+        st.progress(float(np.max(pred)))
